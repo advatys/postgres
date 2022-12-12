@@ -1,7 +1,8 @@
+{{- if .Values.cluster.backup.enabled }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ include "vault-secret.fullname" . }}
+  name: {{ include "vault-secret.fullname" . }}-vault-secret-update
   labels:
     {{- include "vault-secret.labels" . | nindent 4 }}
 spec:
@@ -73,3 +74,4 @@ spec:
   schedule: '*/5 * * * *'
   successfulJobsHistoryLimit: 5
 ---
+{{- end }}

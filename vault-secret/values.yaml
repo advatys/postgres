@@ -1,6 +1,14 @@
 # Default values for vault-secret.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+
+cluster:
+  backup: 
+    enabled: true
+    schedule: "0 */5 * * * *" # Required seconds!!!
+  size: 3
+  storageSize: 2Gi
+   
 command:
   - kubectl 
 

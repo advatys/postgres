@@ -1,3 +1,4 @@
+{{- if .Values.cluster.backup.enabled }}
 apiVersion: s3.advatys.com/v1alpha1
 kind: Bucket
 metadata:
@@ -16,4 +17,4 @@ spec:
          name: {{ include "vault-secret.serviceAccountName" . }} 
          namespace: {{ .Release.Namespace }} 
     effect: Allow
-
+{{- end }}
