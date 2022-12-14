@@ -1,0 +1,33 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "vault-secret.fullname" . }}
+
+spec:
+  instances: {{ .Values.cluster.size }}
+
+  # Example of rolling update strategy:
+  # - unsupervised: automated update of the primary once all
+  #                 replicas have been upgraded (default)
+  # - supervised: requires manual supervision to perform
+  #               the switchover of the primary
+  primaryUpdateStrategy: unsupervised
+
+  # Require 1Gi of space
+  storage:
+    size: {{ .Values.cluster.storageSize }}
+{{- if .Values.cluster.backup.enabled }}
+  backup:
+    barmanObjectStore:
+      destinationPath: "s3://{{ include "vault-secret.fullname" . }}-bucket/backup"
+      s3Credentials:
+        accessKeyId:
+          name: {{ include "vault-secret.fullname" . }}-aws-secret
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: {{ include "vault-secret.fullname" . }}-aws-secret
+          key: ACCESS_SECRET_KEY
+        sessionToken:
+          name: {{ include "vault-secret.fullname" . }}-aws-secret
+          key: ACCESS_SESSION_TOKEN
+{{- end }}

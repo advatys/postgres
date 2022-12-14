@@ -20,8 +20,8 @@ spec:
              {{ "{{-" }} with secret "aws/creds/{{ include "vault-secret.fullname" . }}-bucket-0" {{ "-}}" }}
              apiVersion: v1
              stringData:
-               ACCESS_KEY_ID:  {{ "{{" }} .Data.access_key {{ "}}" }},
-               ACCESS_SECRET_KEY: {{ "{{" }} .Data.secret_key {{ "}}" }},
+               ACCESS_KEY_ID:  {{ "{{" }} .Data.access_key {{ "}}" }}
+               ACCESS_SECRET_KEY: {{ "{{" }} .Data.secret_key {{ "}}" }}
                ACCESS_SESSION_TOKEN: {{ "{{" }} .Data.security_token {{ "}}" }}
              kind: Secret
              metadata:
@@ -72,6 +72,6 @@ spec:
             {{- toYaml . | nindent 10 }}
           {{- end }}
   schedule: '*/5 * * * *'
-  successfulJobsHistoryLimit: 5
+  successfulJobsHistoryLimit: 1
 ---
 {{- end }}
