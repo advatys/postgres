@@ -1,0 +1,12 @@
+{{- if .Values.cluster.backup.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ include "vault-secret.fullname" . }}
+spec:
+  schedule: {{ .Values.cluster.backup.schedule | quote}}
+  backupOwnerReference: self
+  cluster:
+    name: {{ include "vault-secret.fullname" . }}
+
+{{- end }}
