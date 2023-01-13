@@ -3,6 +3,11 @@
 # Declare variables to be passed into your templates.
 
 cluster:
+  initDB:
+    enabled: true
+    dbName: app
+    username: app
+    password: superpassword
   backup: 
     enabled: true
     schedule: "0 */5 * * * *" # Required seconds!!!

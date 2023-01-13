@@ -5,17 +5,16 @@ metadata:
 
 spec:
   instances: {{ .Values.cluster.size }}
-
-  # Example of rolling update strategy:
-  # - unsupervised: automated update of the primary once all
-  #                 replicas have been upgraded (default)
-  # - supervised: requires manual supervision to perform
-  #               the switchover of the primary
-  primaryUpdateStrategy: unsupervised
-
-  # Require 1Gi of space
   storage:
     size: {{ .Values.cluster.storageSize }}
+{{- if .Values.cluster.initDB.enabled }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.cluster.initDB.dbName }}
+      owner: {{ .Values.cluster.initDB.username }}
+      secret:
+        name: {{ include "vault-secret.fullname" . }}-pgcluster-app
+{{- end }}
 {{- if .Values.cluster.backup.enabled }}
   backup:
     barmanObjectStore:
