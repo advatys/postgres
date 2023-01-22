@@ -24,7 +24,7 @@ args:
   - /kubesecret/secret.yaml
 
 vault:
-  s3Addr: https://v.jaroslav.org
+  s3Addr: https://vault.example.org
   skipTLSVerify: false
 
 image:
