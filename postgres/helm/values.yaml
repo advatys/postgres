@@ -4,13 +4,15 @@
 
 kubeClusterName: jwt
 cluster:
+  monitoring:
+    enabled: true
   initDB:
     enabled: true
     dbName: app
     username: app
     password: superpassword
   backup: 
-    enabled: true
+    enabled: false
     schedule: "0 */5 * * * *" # Required seconds!!!
   size: 3
   storageSize: 2Gi

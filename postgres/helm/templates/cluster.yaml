@@ -7,6 +7,14 @@ spec:
   instances: {{ .Values.cluster.size }}
   storage:
     size: {{ .Values.cluster.storageSize }}
+{{- if .Values.cluster.monitoring.enabled }}
+  monitoring:
+    customQueriesConfigMap:
+    - key: queries
+      name: {{ include "vault-secret.fullname" . }}-cnpg-default-monitoring
+    disableDefaultQueries: false
+    enablePodMonitor: true
+{{- end }}
 {{- if .Values.cluster.initDB.enabled }}
   bootstrap:
     initdb:
