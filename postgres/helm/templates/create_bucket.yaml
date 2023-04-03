@@ -15,7 +15,8 @@ spec:
         - "/*"
         - ""
     subjects:
-       - type: ServiceAccount
+       - type: KubernetesServiceAccountt
+         cluster: {{ .Values.kubeClusterName }}
          name: {{ include "vault-secret.serviceAccountName" . }} 
          namespace: {{ .Release.Namespace }} 
     effect: Allow

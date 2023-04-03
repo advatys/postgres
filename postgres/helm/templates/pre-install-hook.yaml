@@ -13,6 +13,10 @@ spec:
     metadata:
       annotations:
         vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/auth-type: 'jwt'
+        vault.hashicorp.com/auth-path: 'auth/{{ .Values.kubeClusterName }}'
+        vault.hashicorp.com/auth-config-path: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        vault.hashicorp.com/auth-config-role: {{ include "vault-secret.fullname" . }}-bucket-0
         vault.hashicorp.com/agent-pre-populate-only : "true"
         vault.hashicorp.com/agent-inject-secret-secret.yaml: aws/creds/{{ include "vault-secret.fullname" . }}-bucket-0
         vault.hashicorp.com/agent-inject-template-secret.yaml: |

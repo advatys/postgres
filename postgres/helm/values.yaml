@@ -2,9 +2,17 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+kubeClusterName: jwt
 cluster:
-  backup: 
+  monitoring:
     enabled: true
+  initDB:
+    enabled: true
+    dbName: app
+    username: app
+    password: superpassword
+  backup: 
+    enabled: false
     schedule: "0 */5 * * * *" # Required seconds!!!
   size: 3
   storageSize: 2Gi
@@ -18,7 +26,7 @@ args:
   - /kubesecret/secret.yaml
 
 vault:
-  s3Addr: https://v.jaroslav.org
+  s3Addr: https://vault.example.org
   skipTLSVerify: false
 
 image:
