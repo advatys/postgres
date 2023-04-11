@@ -11,7 +11,8 @@ spec:
   - name: cnp-default.rules
     rules:
     - alert: PostgresqlDown
-      expr: pg_up == 0
+      expr: |-
+        pg_up == 0
       for: 0m
       labels:
         severity: critical
@@ -19,7 +20,8 @@ spec:
         summary: Postgresql down (instance {{"{{"}} $labels.instance {{"}}"}})
         description: "Postgresql instance is down\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
     - alert: PostgresqlRestarted
-      expr: time() - pg_postmaster_start_time_seconds < 60
+      expr: |-
+        time() - pg_postmaster_start_time_seconds < 60
       for: 0m
       labels:
         severity: critical
@@ -28,7 +30,8 @@ spec:
         description: "Postgresql restarted\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
   
     - alert: PostgresqlExporterError
-      expr: pg_exporter_last_scrape_error > 0
+      expr: |-
+        pg_exporter_last_scrape_error > 0
       for: 0m
       labels:
         severity: critical
@@ -38,7 +41,8 @@ spec:
   
   
     - alert: PostgresqlTableNotAutoVacuumed
-      expr: (pg_stat_user_tables_last_autovacuum > 0) and (time() - pg_stat_user_tables_last_autovacuum) > 60 * 60 * 24 * 10
+      expr: |-
+        (pg_stat_user_tables_last_autovacuum > 0) and (time() - pg_stat_user_tables_last_autovacuum) > 60 * 60 * 24 * 10
       for: 0m
       labels:
         severity: warning
@@ -48,7 +52,8 @@ spec:
   
   
     - alert: PostgresqlTableNotAutoAnalyzed
-      expr: (pg_stat_user_tables_last_autoanalyze > 0) and (time() - pg_stat_user_tables_last_autoanalyze) > 24 * 60 * 60 * 10
+      expr: |-
+        (pg_stat_user_tables_last_autoanalyze > 0) and (time() - pg_stat_user_tables_last_autoanalyze) > 24 * 60 * 60 * 10
       for: 0m
       labels:
         severity: warning
@@ -57,7 +62,8 @@ spec:
         description: "Table {{"{{"}} $labels.relname {{"}}"}} has not been auto analyzed for 10 days\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
   
     - alert: PostgresqlTooManyConnections
-      expr: sum by (datname) (pg_stat_activity_count{datname!~"template.*|postgres"}) > pg_settings_max_connections * 0.8
+      expr: |-
+        sum by (datname) (pg_stat_activity_count{datname!~"template.*|postgres"}) > pg_settings_max_connections * 0.8
       for: 2m
       labels:
         severity: warning
@@ -67,7 +73,8 @@ spec:
   
   
     - alert: PostgresqlNotEnoughConnections
-      expr: sum by (datname) (pg_stat_activity_count{datname!~"template.*|postgres"}) < 5
+      expr: |- 
+        sum by (datname) (pg_stat_activity_count{datname!~"template.*|postgres"}) < 5
       for: 2m
       labels:
         severity: warning
@@ -77,7 +84,8 @@ spec:
   
   
     - alert: PostgresqlDeadLocks
-      expr: increase(pg_stat_database_deadlocks{datname!~"template.*|postgres"}[1m]) > 5
+      expr: |- 
+        increase(pg_stat_database_deadlocks{datname!~"template.*|postgres"}[1m]) > 5
       for: 0m
       labels:
         severity: warning
@@ -87,7 +95,8 @@ spec:
   
   
     - alert: PostgresqlHighRollbackRate
-      expr: sum by (namespace,datname) ((rate(pg_stat_database_xact_rollback{datname!~"template.*|postgres",datid!="0"}[3m])) / ((rate(pg_stat_database_xact_rollback{datname!~"template.*|postgres",datid!="0"}[3m])) + (rate(pg_stat_database_xact_commit{datname!~"template.*|postgres",datid!="0"}[3m])))) > 0.02
+      expr: |-
+        sum by (namespace,datname) ((rate(pg_stat_database_xact_rollback{datname!~"template.*|postgres",datid!="0"}[3m])) / ((rate(pg_stat_database_xact_rollback{datname!~"template.*|postgres",datid!="0"}[3m])) + (rate(pg_stat_database_xact_commit{datname!~"template.*|postgres",datid!="0"}[3m])))) > 0.02
       for: 0m
       labels:
         severity: warning
@@ -97,7 +106,8 @@ spec:
   
   
     - alert: PostgresqlCommitRateLow
-      expr: rate(pg_stat_database_xact_commit[1m]) < 10
+      expr: |-
+        rate(pg_stat_database_xact_commit[1m]) < 10
       for: 2m
       labels:
         severity: critical
@@ -106,7 +116,8 @@ spec:
         description: "Postgresql seems to be processing very few transactions\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
   
     - alert: PostgresqlLowXidConsumption
-      expr: rate(pg_txid_current[1m]) < 5
+      expr: |-
+        rate(pg_txid_current[1m]) < 5
       for: 2m
       labels:
         severity: warning
@@ -115,7 +126,8 @@ spec:
         description: "Postgresql seems to be consuming transaction IDs very slowly\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
   
     - alert: PostgresqlHighRateStatementTimeout
-      expr: rate(postgresql_errors_total{type="statement_timeout"}[1m]) > 3
+      expr: |-
+        rate(postgresql_errors_total{type="statement_timeout"}[1m]) > 3
       for: 0m
       labels:
         severity: critical
@@ -124,7 +136,8 @@ spec:
         description: "Postgres transactions showing high rate of statement timeouts\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
   
     - alert: PostgresqlHighRateDeadlock
-      expr: increase(postgresql_errors_total{type="deadlock_detected"}[1m]) > 1
+      expr: |-
+        increase(postgresql_errors_total{type="deadlock_detected"}[1m]) > 1
       for: 0m
       labels:
         severity: critical
@@ -133,7 +146,8 @@ spec:
         description: "Postgres detected deadlocks\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
   
     - alert: PostgresqlUnusedReplicationSlot
-      expr: pg_replication_slots_active == 0
+      expr: |-
+        pg_replication_slots_active == 0
       for: 1m
       labels:
         severity: warning
@@ -142,7 +156,8 @@ spec:
         description: "Unused Replication Slots\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
   
     - alert: PostgresqlTooManyDeadTuples
-      expr: ((pg_stat_user_tables_n_dead_tup > 10000) / (pg_stat_user_tables_n_live_tup + pg_stat_user_tables_n_dead_tup)) >= 0.1
+      expr: |-
+        ((pg_stat_user_tables_n_dead_tup > 10000) / (pg_stat_user_tables_n_live_tup + pg_stat_user_tables_n_dead_tup)) >= 0.1
       for: 2m
       labels:
         severity: warning
@@ -152,7 +167,8 @@ spec:
   
   
     - alert: PostgresqlSslCompressionActive
-      expr: sum(pg_stat_ssl_compression) > 0
+      expr: |- 
+        sum(pg_stat_ssl_compression) > 0
       for: 0m
       labels:
         severity: critical
@@ -162,7 +178,8 @@ spec:
   
   
     - alert: PostgresqlTooManyLocksAcquired
-      expr: ((sum (pg_locks_count)) / (pg_settings_max_locks_per_transaction * pg_settings_max_connections)) > 0.20
+      expr: |-
+        ((sum (pg_locks_count)) / (pg_settings_max_locks_per_transaction * pg_settings_max_connections)) > 0.20
       for: 2m
       labels:
         severity: critical
@@ -171,7 +188,8 @@ spec:
         description: "Too many locks acquired on the database. If this alert happens frequently, we may need to increase the postgres setting max_locks_per_transaction.\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
   
     - alert: PostgresqlBloatIndexHigh(>80%)
-      expr: pg_bloat_btree_bloat_pct > 80 and on (idxname) (pg_bloat_btree_real_size > 100000000)
+      expr: |-
+        pg_bloat_btree_bloat_pct > 80 and on (idxname) (pg_bloat_btree_real_size > 100000000)
       for: 1h
       labels:
         severity: warning
@@ -180,7 +198,8 @@ spec:
         description: "The index {{"{{"}} $labels.idxname {{"}}"}} is bloated. You should execute `REINDEX INDEX CONCURRENTLY {{"{{"}} $labels.idxname {{"}}"}};`\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
   
     - alert: PostgresqlBloatTableHigh(>80%)
-      expr: pg_bloat_table_bloat_pct > 80 and on (relname) (pg_bloat_table_real_size > 200000000)
+      expr: |-
+        pg_bloat_table_bloat_pct > 80 and on (relname) (pg_bloat_table_real_size > 200000000)
       for: 1h
       labels:
         severity: warning
@@ -189,7 +208,8 @@ spec:
         description: "The table {{"{{"}} $labels.relname {{"}}"}} is bloated. You should execute `VACUUM {{"{{"}} $labels.relname {{"}}"}};`\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
   
     - alert: PostgresqlHighDbSize
-      expr: pg_database_size_bytes / (1024 * 1024 * 1024)   > 100  # this value depends on available disk size 
+      expr: |-
+        pg_database_size_bytes / (1024 * 1024 * 1024)   > 100  # this value depends on available disk size 
       for: 0m
       labels:
         severity: critical
@@ -198,7 +218,8 @@ spec:
         description: "Postgresql DB size is more than 100 GB\n  VALUE = {{"{{"}} $value {{"}}"}}\n  LABELS = {{"{{"}} $labels {{"}}"}}"
   
     - alert: PostgresqlReplicationLag
-      expr: pg_replication_lag > 30 and ON(instance) pg_replication_is_replica == 1
+      expr: |-
+        pg_replication_lag > 30 and ON(instance) pg_replication_is_replica == 1
       for: 0m
       labels:
         severity: critical
