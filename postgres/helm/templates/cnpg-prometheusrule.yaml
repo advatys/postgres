@@ -3,6 +3,8 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: {{ include "vault-secret.fullname" . }}cnpg-default-alerts
+  labels:
+    openshift.io/prometheus-rule-evaluation-scope: leaf-prometheus
 apiVersion: monitoring.coreos.com/v1
 spec:
   groups:
