@@ -4,18 +4,24 @@
 prometheus-postgres-exporter:
   config:
     datasource:
-      host: grafana-psql-pgcluster-r.grafana.svc
+      host: grafana-psql-pgcluster
       passwordSecret:
         name: grafana-psql-pgcluster-superuser
         key: password
 
   serviceMonitor:
-    enabled: true
+    enabled: false
+
+podLogs:
+  enabled: true
+  intstanceSelector: 
+    app.kubernetes.io/instance: loki
+    app.kubernetes.io/name: loki
 
 kubeClusterName: jwt
 cluster:
   monitoring:
-    enabled: true
+    enabled: false
   initDB:
     enabled: true
     dbName: grafana
