@@ -1,0 +1,184 @@
+apiVersion: s3.advatys.com/v1alpha1
+kind: Bucket
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+  name: {{ include "cnpg-cluster.fullname" . }}-backup
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+spec:
+  region: {{ .Values.backup.bucket.region }}
+  bucketClassName: {{ .Values.backup.bucket.class }}
+  bucketPreventDestroy: true
+  roles:
+    - actions:
+          - "PutObject"
+          - "GetObject"
+          - "DeleteObject"
+          - "ListBucket"
+      resources:
+          - "/*"
+          - ""
+
+      subjects:
+        - type: KubernetesServiceAccount
+          cluster: {{ .Values.kubeClusterName }}
+          name: {{ include "cnpg-cluster.fullname" . }}-backup
+          namespace: {{ .Release.Namespace }} 
+      effect: Allow
+      name: {{ include "cnpg-cluster.fullname" . }}-backup-creator
+    {{- if eq .Values.bootstrap.type "physical" }}
+    - actions:
+          - "GetObject"
+          - "ListBucketMultipartUploads"
+          - "ListBucket"
+          - "ListMultipartUploadParts"
+          - "GetObjectVersion"
+      resources:
+          - "/*"
+          - ""
+
+      subjects:
+        - type: KubernetesServiceAccount
+          cluster: {{ .Values.kubeClusterName }}
+          name: {{ include "cnpg-cluster.fullname" . }}-restore
+          namespace: {{ .Release.Namespace }} 
+      effect: Allow
+      name: {{ include "cnpg-cluster.fullname" . }}-backup-reader
+    {{- end }}
+
+---
+# apiVersion: redhatcop.redhat.io/v1alpha1
+# kind: VaultSecret
+# metadata:
+#   name: {{ include "cnpg-cluster.fullname" . }}-backup
+# spec:
+#   vaultSecretDefinitions:
+#     - authentication:
+#         path: {{ .Values.backup.bucket.vault.authPath }}
+#         role: {{ include "cnpg-cluster.fullname" . }}-backup-creator-{{ include "cnpg-cluster.fullname" . }}-backup-{{ .Release.Namespace }}
+#         serviceAccount:
+#           name: {{ include "cnpg-cluster.fullname" . }}-backup
+#       connection:
+#         address: {{ .Values.backup.bucket.vault.address }}
+#       name: bucketCreds
+#       path: {{ .Values.backup.bucket.vault.awsBackend }}/creds/{{ include "cnpg-cluster.fullname" . }}-backup-creator
+
+#   output:
+#     name: {{ include "cnpg-cluster.fullname" . }}-backup-creds
+#     stringData:
+#       ACCESS_KEY_ID:  {{ "{{" }} .bucketCreds.Data.access_key {{ "}}" }}
+#       ACCESS_SECRET_KEY: {{ "{{" }} .bucketCreds.Data.secret_key {{ "}}" }}
+#       ACCESS_SESSION_TOKEN: {{ "{{" }} .bucketCreds.Data.security_token {{ "}}" }}
+#     type: Opaque
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "cnpg-cluster.fullname" . }}-backup-creds-update
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 5
+  
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          annotations:
+            vault.hashicorp.com/agent-inject: "true"
+            vault.hashicorp.com/auth-path: "auth/{{ .Values.backup.bucket.vault.authPath }}"
+            vault.hashicorp.com/auth-type: "jwt"
+            vault.hashicorp.com/auth-config-remove-jwt-after-reading: 'false'
+            vault.hashicorp.com/agent-pre-populate-only : "true"
+            vault.hashicorp.com/auth-config-path: /var/run/secrets/tokens/vault-jwt-token
+            vault.hashicorp.com/agent-inject-secret-secret.yaml: "{{ .Values.backup.bucket.vault.awsBackend }}/creds/{{ include "cnpg-cluster.fullname" . }}-backup-creator"
+            vault.hashicorp.com/agent-inject-template-secret.yaml: |
+             {{ "{{-" }} with secret "{{ .Values.backup.bucket.vault.awsBackend }}/creds/{{ include "cnpg-cluster.fullname" . }}-backup-creator" {{ "-}}" }}
+             apiVersion: v1
+             stringData:
+               ACCESS_KEY_ID:  {{ "{{" }} .Data.access_key {{ "}}" }}
+               ACCESS_SECRET_KEY: {{ "{{" }} .Data.secret_key {{ "}}" }}
+               ACCESS_SESSION_TOKEN: {{ "{{" }} .Data.security_token {{ "}}" }}
+             kind: Secret
+             metadata:
+               name: {{ include "cnpg-cluster.fullname" . }}-backup-credentials
+               namespace: {{ .Release.Namespace }}
+             {{ "{{" }} end {{ "}}" }}
+            vault.hashicorp.com/role: "{{ include "cnpg-cluster.fullname" . }}-backup-creator-{{ include "cnpg-cluster.fullname" . }}-backup-{{ .Release.Namespace }}"
+            vault.hashicorp.com/secret-volume-path-secret.yaml: /kubesecret
+            vault.hashicorp.com/service: "{{ .Values.backup.bucket.vault.address }}"
+            vault.hashicorp.com/tls-skip-verify: "false"
+            vault.hashicorp.com/agent-copy-volume-mounts: "get-secret"
+            vault.hashicorp.com/ca-cert: "/usr/local/share/ca-certificates/ca-bundle.crt"
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ include "cnpg-cluster.fullname" . }}-backup
+          volumes:
+            - name: custom-trusted-ca
+              configMap:
+                name: custom-trusted-ca
+            - name: vault-jwt-token
+              projected:
+                sources:
+                  - serviceAccountToken:
+                      path: vault-jwt-token
+                      expirationSeconds: 600
+                      audience: "{{ .Values.backup.bucket.vault.address }}"
+          containers:
+            - name: get-secret
+              image: "docker.io/bitnami/kubectl:1.25.11-debian-11-r2@sha256:77cd60dc2a689f9eb0f5ae66d3bc28c7a07350cbfb779d964939632b55810143"
+              imagePullPolicy: "IfNotPresent"
+              volumeMounts:
+                - mountPath: /var/run/secrets/tokens
+                  name: vault-jwt-token
+                - name: custom-trusted-ca
+                  mountPath: /usr/local/share/ca-certificates
+                  readOnly: true
+
+              command:
+                - sh
+                - -c
+                - kubectl apply -f /kubesecret/secret.yaml -n {{ .Release.Namespace }}
+
+  schedule: '*/5 * * * *'
+  successfulJobsHistoryLimit: 3
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "cnpg-cluster.fullname" . }}-backup
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "cnpg-cluster.fullname" . }}-backup
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch      
+      - create
+      - update
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "cnpg-cluster.fullname" . }}-backup
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "cnpg-cluster.fullname" . }}-backup
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "cnpg-cluster.fullname" . }}-backup
+    namespace: {{ .Release.Namespace }}
+
