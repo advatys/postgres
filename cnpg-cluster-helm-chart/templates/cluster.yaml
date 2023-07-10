@@ -1,0 +1,87 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "cnpg-cluster.fullname" . }}
+
+spec:
+  instances: {{ .Values.size }}
+  imageName: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+  affinity:
+    enablePodAntiAffinity: true 
+    topologyKey: topology.kubernetes.io/zone
+    podAntiAffinityType: required
+  primaryUpdateStrategy: unsupervised
+  stopDelay: 300
+  resources: {{ toYaml .Values.resources | nindent 4 }}
+  storage: {{ toYaml .Values.storage | nindent 4 }}
+  walStorage: {{ toYaml .Values.walStorage | nindent 4 }}
+  {{- if .Values.postgresql }}
+  postgresql: {{ toYaml .Values.postgresql | nindent 4 }}
+
+  {{- end }}
+
+  monitoring:
+    disableDefaultQueries: false
+    enablePodMonitor: true
+
+  {{- if not (eq .Values.bootstrap.type "none") }}
+  bootstrap:
+    {{- if eq .Values.bootstrap.type "physical" }}
+    recovery:
+      source: {{ .Values.bootstrap.sourceClusterName }}
+      {{- if .Values.bootstrap.recoveryTarget }}
+      recoveryTarget: {{ toYaml .Values.bootstrap.recoveryTarget | nindent 8 }}
+
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.clusterReplication }}
+  replica:
+    enabled: true
+    source: {{ .Values.bootstrap.dbClusterName }}
+  {{- end }}
+
+  {{- if eq .Values.bootstrap.type "physical" }}
+  externalClusters:
+    - name: {{ .Values.bootstrap.dbClusterName }}
+      barmanObjectStore:
+        destinationPath: "{{ .Values.bootstrap.bucket.path }}"
+        endpointURL: "{{ .Values.bootstrap.bucket.endpointURL }}"
+        s3Credentials:
+          accessKeyId:
+            name: {{ include "cnpg-cluster.fullname" . }}-restore-credentials
+            key: ACCESS_KEY_ID
+          secretAccessKey:
+            name: {{ include "cnpg-cluster.fullname" . }}-restore-credentials
+            key: ACCESS_SECRET_KEY
+          sessionToken:
+            name: {{ include "cnpg-cluster.fullname" . }}-restore-credentials
+            key: ACCESS_SESSION_TOKEN
+        wal:
+          maxParallel: 8
+  {{- end }}
+
+
+  
+
+  {{- if eq .Values.backup.type "physical" }}
+  backup:
+    barmanObjectStore:
+      destinationPath: "s3://{{ include "cnpg-cluster.fullname" . }}-backup/"
+      endpointURL: "{{ .Values.backup.bucket.endpointURL }}"
+      serverName: "{{ .Values.backup.bucket.dbClusterName }}"
+      wal:
+        compression: gzip
+        maxParallel: 8
+        encryption: AES256
+      s3Credentials:
+        accessKeyId:
+          name: {{ include "cnpg-cluster.fullname" . }}-backup-credentials
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: {{ include "cnpg-cluster.fullname" . }}-backup-credentials
+          key: ACCESS_SECRET_KEY
+        sessionToken:
+          name: {{ include "cnpg-cluster.fullname" . }}-backup-credentials
+          key: ACCESS_SESSION_TOKEN
+  {{- end }}

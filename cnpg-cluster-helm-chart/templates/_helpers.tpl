@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "vault-secret.name" -}}
+{{- define "cnpg-cluster.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "vault-secret.fullname" -}}
+{{- define "cnpg-cluster.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,16 +26,16 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "vault-secret.chart" -}}
+{{- define "cnpg-cluster.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "vault-secret.labels" -}}
-helm.sh/chart: {{ include "vault-secret.chart" . }}
-{{ include "vault-secret.selectorLabels" . }}
+{{- define "cnpg-cluster.labels" -}}
+helm.sh/chart: {{ include "cnpg-cluster.chart" . }}
+{{ include "cnpg-cluster.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -45,17 +45,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "vault-secret.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "vault-secret.name" . }}
+{{- define "cnpg-cluster.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "cnpg-cluster.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "vault-secret.serviceAccountName" -}}
+{{- define "cnpg-cluster.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "vault-secret.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "cnpg-cluster.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
