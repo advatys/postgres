@@ -1,0 +1,47 @@
+{{ if .Values.podLogs.enabled }}
+apiVersion: monitoring.grafana.com/v1alpha1
+kind: PodLogs
+metadata:
+  labels:
+  {{- with .Values.podLogs.intstanceSelector }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  name: {{ include "vault-secret.fullname" . }}-cnpg-podlogs
+spec:
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+  pipelineStages:
+  - cri: {}
+  relabelings:
+  - action: replace
+    sourceLabels:
+    - __meta_kubernetes_pod_node_name
+    targetLabel: __host__
+  - action: labelmap
+    regex: __meta_kubernetes_pod_label_(.+)
+  - action: replace
+    replacement: $1
+    separator: '-'
+    sourceLabels:
+    - __meta_kubernetes_pod_label_app_kubernetes_io_name
+    - __meta_kubernetes_pod_label_app_kubernetes_io_component
+    targetLabel: __service__
+  - action: replace
+    replacement: $1
+    separator: /
+    sourceLabels:
+    - __meta_kubernetes_namespace
+    - __service__
+    targetLabel: job
+  - action: replace
+    sourceLabels:
+    - __meta_kubernetes_pod_container_name
+    targetLabel: container
+  - action: replace
+    replacement: loki
+    targetLabel: cluster
+  selector:
+    matchLabels:
+      cnpg.io/cluster: {{ include "vault-secret.fullname" . }}
+{{- end }}
