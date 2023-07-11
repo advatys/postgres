@@ -24,19 +24,14 @@ spec:
             vault.hashicorp.com/auth-config-path: /var/run/secrets/tokens/vault-jwt-token
             vault.hashicorp.com/agent-inject-secret-secret.yaml: "{{ .Values.backup.bucket.vault.awsBackend }}/creds/{{ include "cnpg-cluster.fullname" . }}-backup-creator"
             vault.hashicorp.com/agent-inject-template-secret.yaml: |
-             {{ "{{-" }} with secret "{{ .Values.backup.bucket.vault.awsBackend }}/creds/{{ include "cnpg-cluster.fullname" . }}-backup-creator" {{ "-}}" }}
-             apiVersion: v1
-             stringData:
-               ACCESS_KEY_ID:  {{ "{{" }} .Data.access_key {{ "}}" }}
-               ACCESS_SECRET_KEY: {{ "{{" }} .Data.secret_key {{ "}}" }}
-               ACCESS_SESSION_TOKEN: {{ "{{" }} .Data.security_token {{ "}}" }}
-             kind: Secret
-             metadata:
-               name: {{ include "cnpg-cluster.fullname" . }}-backup-credentials
-               namespace: {{ .Release.Namespace }}
-             {{ "{{" }} end {{ "}}" }}
+              {{ "{{-" }} with secret "/tmp/.aws/credentials  {{ "}}" }}
+              [default]
+              aws_access_key_id={{ "{{" }} .Data.access_key {{ "}}" }}
+              aws_secret_access_key={{ "{{" }} .Data.secret_key {{ "}}" }}
+              aws_session_token={{ "{{" }} .Data.security_token {{ "}}" }}
+              {{ "{{" }} end {{ "}}" }}
             vault.hashicorp.com/role: "{{ include "cnpg-cluster.fullname" . }}-backup-creator-{{ include "cnpg-cluster.fullname" . }}-backup-{{ .Release.Namespace }}"
-            vault.hashicorp.com/secret-volume-path-secret.yaml: /kubesecret
+            vault.hashicorp.com/secret-volume-path-secret.yaml: /tmp/.aws/
             vault.hashicorp.com/service: "{{ .Values.backup.bucket.vault.address }}"
             vault.hashicorp.com/tls-skip-verify: "false"
             vault.hashicorp.com/agent-copy-volume-mounts: "get-secret"
@@ -57,7 +52,7 @@ spec:
                       audience: "{{ .Values.backup.bucket.vault.address }}"
             - name: backup
               emptyDir: {}
-          containers:
+          initContainers:
             - name: logical-backup
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               imagePullPolicy: "IfNotPresent"
@@ -81,12 +76,34 @@ spec:
                   readOnly: true
                 - name: backup
                   mountPath: /backup
-
               command:
                 - sh
                 - -c
-                - "pg_dumpall -h {{ include "cnpg-cluster.fullname" . }}-ro | gzip > /backup/dump_all_{{ include "cnpg-cluster.fullname" . }}`_date +%F-%T|sed 's/:/-/g'.sql`"
+                - "pg_dumpall -h {{ include "cnpg-cluster.fullname" . }}-ro | gzip > /backup/dump_all_{{ include "cnpg-cluster.fullname" . }}_`date +%F-%T|sed 's/:/-/g'`.sql.gz"
+          containers:
+          - command:
+            - sh
+            - -c
+            - aws s3 sync /backup/ s3://{{ include "cnpg-cluster.fullname" . }}-backup/
+            image: amazon/aws-cli:2.13.0
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: HOME
+              value: /tmp
+            name: aws-backup
+            resources: {}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+            - mountPath: /var/run/secrets/tokens
+              name: vault-jwt-token
+            - mountPath: /usr/local/share/ca-certificates
+              name: custom-trusted-ca
+              readOnly: true
+            - mountPath: /backup
+              name: backup
 
-  schedule: '{{ .Values.logicalBackup.schedule }}'
+
+  schedule: '{{ .Values.backup.schedule }}'
   successfulJobsHistoryLimit: 3
 {{- end }}

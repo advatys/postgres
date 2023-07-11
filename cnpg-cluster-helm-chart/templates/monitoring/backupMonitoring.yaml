@@ -1,0 +1,21 @@
+{{- if eq .Values.backup.type "logical" }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "cnpg-cluster.fullname" . }}-backuplogical-alerts
+  labels:
+    openshift.io/prometheus-rule-evaluation-scope: leaf-prometheus
+spec:
+  groups:
+  - name: backup-default.rules
+    rules:
+    - alert: backupJobFailed
+      annotations:
+        description: Job {{ "{{" }}$labels.job_name{{ "}}" }} is failed
+        summary: Logical Backup is Failed
+      expr: |-
+        kube_job_failed{namespace="{{ .Release.Namespace }}",job_name=~"{{ include "cnpg-cluster.fullname" . }}-backup-logical.*"} == 1
+      for: 5m
+      labels:
+        severity: critical
+{{- end }}

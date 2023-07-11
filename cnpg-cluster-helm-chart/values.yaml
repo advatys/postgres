@@ -44,10 +44,6 @@ postgresql: {}
 
 clusterReplication: false
 
-logicalBackup:
-  enabled: true
-  createBucket: true
-  schedule: "00 1 * * *"
 
 backup: 
   # Options:
@@ -55,7 +51,7 @@ backup:
   #  - physical
   #  - logical
   type: "none"
-  schedule: "0 */10 * * * *" # Required seconds!!!
+  schedule: "0 1 * * *" # NOT Required seconds anymore!!!
   bucket:
     endpointURL: ""
     dbClusterName: ""
