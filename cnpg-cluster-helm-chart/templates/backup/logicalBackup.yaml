@@ -1,0 +1,142 @@
+{{- if .Values.logicalBackup.enabled }}
+{{- if .Values.logicalBackup.createBucket -}}
+apiVersion: s3.advatys.com/v1alpha1
+kind: Bucket
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+  name: {{ include "cnpg-cluster.fullname" . }}-backup-logical
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+spec:
+  region: {{ .Values.backup.bucket.region }}
+  bucketClassName: {{ .Values.backup.bucket.class }}
+  bucketPreventDestroy: true
+  roles:
+    - actions:
+          - "PutObject"
+          - "GetObject"
+          - "DeleteObject"
+          - "ListBucket"
+      resources:
+          - "/*"
+          - ""
+
+      subjects:
+        - type: KubernetesServiceAccount
+          cluster: {{ .Values.kubeClusterName }}
+          name: {{ include "cnpg-cluster.fullname" . }}-backup
+          namespace: {{ .Release.Namespace }} 
+      effect: Allow
+      name: {{ include "cnpg-cluster.fullname" . }}-backup-creator
+    {{- if eq .Values.bootstrap.type "physical" }}
+    - actions:
+          - "GetObject"
+          - "ListBucketMultipartUploads"
+          - "ListBucket"
+          - "ListMultipartUploadParts"
+          - "GetObjectVersion"
+      resources:
+          - "/*"
+          - ""
+
+      subjects:
+        - type: KubernetesServiceAccount
+          cluster: {{ .Values.kubeClusterName }}
+          name: {{ include "cnpg-cluster.fullname" . }}-restore
+          namespace: {{ .Release.Namespace }} 
+      effect: Allow
+      name: {{ include "cnpg-cluster.fullname" . }}-backup-reader
+    {{- end }}
+{{- end }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "cnpg-cluster.fullname" . }}-backup-logical
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 5
+  
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          annotations:
+            vault.hashicorp.com/agent-inject: "true"
+            vault.hashicorp.com/auth-path: "auth/{{ .Values.backup.bucket.vault.authPath }}"
+            vault.hashicorp.com/auth-type: "jwt"
+            vault.hashicorp.com/auth-config-remove-jwt-after-reading: 'false'
+            vault.hashicorp.com/agent-pre-populate-only : "true"
+            vault.hashicorp.com/auth-config-path: /var/run/secrets/tokens/vault-jwt-token
+            vault.hashicorp.com/agent-inject-secret-secret.yaml: "{{ .Values.backup.bucket.vault.awsBackend }}/creds/{{ include "cnpg-cluster.fullname" . }}-backup-creator"
+            vault.hashicorp.com/agent-inject-template-secret.yaml: |
+             {{ "{{-" }} with secret "{{ .Values.backup.bucket.vault.awsBackend }}/creds/{{ include "cnpg-cluster.fullname" . }}-backup-creator" {{ "-}}" }}
+             apiVersion: v1
+             stringData:
+               ACCESS_KEY_ID:  {{ "{{" }} .Data.access_key {{ "}}" }}
+               ACCESS_SECRET_KEY: {{ "{{" }} .Data.secret_key {{ "}}" }}
+               ACCESS_SESSION_TOKEN: {{ "{{" }} .Data.security_token {{ "}}" }}
+             kind: Secret
+             metadata:
+               name: {{ include "cnpg-cluster.fullname" . }}-backup-credentials
+               namespace: {{ .Release.Namespace }}
+             {{ "{{" }} end {{ "}}" }}
+            vault.hashicorp.com/role: "{{ include "cnpg-cluster.fullname" . }}-backup-creator-{{ include "cnpg-cluster.fullname" . }}-backup-{{ .Release.Namespace }}"
+            vault.hashicorp.com/secret-volume-path-secret.yaml: /kubesecret
+            vault.hashicorp.com/service: "{{ .Values.backup.bucket.vault.address }}"
+            vault.hashicorp.com/tls-skip-verify: "false"
+            vault.hashicorp.com/agent-copy-volume-mounts: "get-secret"
+            vault.hashicorp.com/ca-cert: "/usr/local/share/ca-certificates/ca-bundle.crt"
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ include "cnpg-cluster.fullname" . }}-backup
+          volumes:
+            - name: custom-trusted-ca
+              configMap:
+                name: custom-trusted-ca
+            - name: vault-jwt-token
+              projected:
+                sources:
+                  - serviceAccountToken:
+                      path: vault-jwt-token
+                      expirationSeconds: 600
+                      audience: "{{ .Values.backup.bucket.vault.address }}"
+            - name: backup
+              emptyDir: {}
+          containers:
+            - name: logical-backup
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: "IfNotPresent"
+              env:
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "cnpg-cluster.fullname" . }}-superuser
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "cnpg-cluster.fullname" . }}-superuser
+                      key: password
+          
+              volumeMounts:
+                - mountPath: /var/run/secrets/tokens
+                  name: vault-jwt-token
+                - name: custom-trusted-ca
+                  mountPath: /usr/local/share/ca-certificates
+                  readOnly: true
+                - name: backup
+                  mountPath: /backup
+
+              command:
+                - sh
+                - -c
+                - "pg_dumpall -h {{ include "cnpg-cluster.fullname" . }}-ro | gzip > /backup/dump_all_{{ include "cnpg-cluster.fullname" . }}`_date +%F-%T|sed 's/:/-/g'.sql`"
+
+  schedule: '{{ .Values.logicalBackup.schedule }}'
+  successfulJobsHistoryLimit: 3
+{{- end }}

@@ -44,6 +44,11 @@ postgresql: {}
 
 clusterReplication: false
 
+logicalBackup:
+  enabled: true
+  createBucket: true
+  schedule: "00 1 * * *"
+
 backup: 
   # Options:
   #  - none
