@@ -1,0 +1,15 @@
+{{- if eq .Values.backup.type "physical" }}
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ include "cnpg-cluster.fullname" . }}
+spec:
+  schedule: "{{ .Values.backup.schedule }}"
+
+  #backupOwnerReference indicates which ownerReference should be put inside the created backup resources.
+  backupOwnerReference: none
+  
+  cluster:
+    name: {{ include "cnpg-cluster.fullname" . }}
+
+{{- end }}
