@@ -1,0 +1,109 @@
+{{- if eq .Values.backup.type "logical" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "cnpg-cluster.fullname" . }}-backup-logical
+  labels:
+    {{- include "cnpg-cluster.labels" . | nindent 4 }}
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 5
+  
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          annotations:
+            vault.hashicorp.com/agent-inject: "true"
+            vault.hashicorp.com/auth-path: "auth/{{ .Values.backup.bucket.vault.authPath }}"
+            vault.hashicorp.com/auth-type: "jwt"
+            vault.hashicorp.com/auth-config-remove-jwt-after-reading: 'false'
+            vault.hashicorp.com/agent-pre-populate-only : "true"
+            vault.hashicorp.com/auth-config-path: /var/run/secrets/tokens/vault-jwt-token
+            vault.hashicorp.com/agent-inject-secret-secret.yaml: "{{ .Values.backup.bucket.vault.awsBackend }}/creds/{{ include "cnpg-cluster.fullname" . }}-backup-creator"
+            vault.hashicorp.com/agent-inject-template-secret.yaml: |
+              {{ "{{-" }} with secret "/tmp/.aws/credentials  {{ "}}" }}
+              [default]
+              aws_access_key_id={{ "{{" }} .Data.access_key {{ "}}" }}
+              aws_secret_access_key={{ "{{" }} .Data.secret_key {{ "}}" }}
+              aws_session_token={{ "{{" }} .Data.security_token {{ "}}" }}
+              {{ "{{" }} end {{ "}}" }}
+            vault.hashicorp.com/role: "{{ include "cnpg-cluster.fullname" . }}-backup-creator-{{ include "cnpg-cluster.fullname" . }}-backup-{{ .Release.Namespace }}"
+            vault.hashicorp.com/secret-volume-path-secret.yaml: /tmp/.aws/
+            vault.hashicorp.com/service: "{{ .Values.backup.bucket.vault.address }}"
+            vault.hashicorp.com/tls-skip-verify: "false"
+            vault.hashicorp.com/agent-copy-volume-mounts: "get-secret"
+            vault.hashicorp.com/ca-cert: "/usr/local/share/ca-certificates/ca-bundle.crt"
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ include "cnpg-cluster.fullname" . }}-backup
+          volumes:
+            - name: custom-trusted-ca
+              configMap:
+                name: custom-trusted-ca
+            - name: vault-jwt-token
+              projected:
+                sources:
+                  - serviceAccountToken:
+                      path: vault-jwt-token
+                      expirationSeconds: 600
+                      audience: "{{ .Values.backup.bucket.vault.address }}"
+            - name: backup
+              emptyDir: {}
+          initContainers:
+            - name: logical-backup
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: "IfNotPresent"
+              env:
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "cnpg-cluster.fullname" . }}-superuser
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "cnpg-cluster.fullname" . }}-superuser
+                      key: password
+          
+              volumeMounts:
+                - mountPath: /var/run/secrets/tokens
+                  name: vault-jwt-token
+                - name: custom-trusted-ca
+                  mountPath: /usr/local/share/ca-certificates
+                  readOnly: true
+                - name: backup
+                  mountPath: /backup
+              command:
+                - sh
+                - -c
+                - "pg_dumpall -h {{ include "cnpg-cluster.fullname" . }}-ro | gzip > /backup/dump_all_{{ include "cnpg-cluster.fullname" . }}_`date +%F-%T|sed 's/:/-/g'`.sql.gz"
+          containers:
+          - command:
+            - sh
+            - -c
+            - aws s3 sync /backup/ s3://{{ include "cnpg-cluster.fullname" . }}-backup/
+            image: amazon/aws-cli:2.13.0
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: HOME
+              value: /tmp
+            name: aws-backup
+            resources: {}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+            - mountPath: /var/run/secrets/tokens
+              name: vault-jwt-token
+            - mountPath: /usr/local/share/ca-certificates
+              name: custom-trusted-ca
+              readOnly: true
+            - mountPath: /backup
+              name: backup
+
+
+  schedule: '{{ .Values.backup.schedule }}'
+  successfulJobsHistoryLimit: 3
+{{- end }}

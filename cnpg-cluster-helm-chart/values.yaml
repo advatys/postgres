@@ -44,13 +44,14 @@ postgresql: {}
 
 clusterReplication: false
 
+
 backup: 
   # Options:
   #  - none
   #  - physical
   #  - logical
   type: "none"
-  schedule: "0 */10 * * * *" # Required seconds!!!
+  schedule: "0 1 * * *" # NOT Required seconds anymore!!!
   bucket:
     endpointURL: ""
     dbClusterName: ""
