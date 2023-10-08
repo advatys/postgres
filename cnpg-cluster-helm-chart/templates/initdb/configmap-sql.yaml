@@ -1,0 +1,10 @@
+{{- if .Values.bootstrap.initdb.configmapSQL }}
+apiVersion: v1
+data:
+  {{ toYaml .Values.bootstrap.initdb.configmapSQL | nindent 2}}  
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-sql
+
+
+{{- end }}

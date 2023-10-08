@@ -1,3 +1,4 @@
+{{- if ne .Values.backup.type "none" }}
 apiVersion: s3.advatys.com/v1alpha1
 kind: Bucket
 metadata:
@@ -22,9 +23,10 @@ spec:
 
       subjects:
         - type: KubernetesServiceAccount
-          cluster: {{ .Values.kubeClusterName }}
+          authPath: {{ .Values.kubeClusterName }}
           name: {{ include "cnpg-cluster.fullname" . }}-backup
           namespace: {{ .Release.Namespace }} 
+          authPath: jwt
       effect: Allow
       name: {{ include "cnpg-cluster.fullname" . }}-backup-creator
     {{- if eq .Values.bootstrap.type "physical" }}
@@ -40,7 +42,7 @@ spec:
 
       subjects:
         - type: KubernetesServiceAccount
-          cluster: {{ .Values.kubeClusterName }}
+          authPathr: {{ .Values.kubeClusterName }}
           name: {{ include "cnpg-cluster.fullname" . }}-restore
           namespace: {{ .Release.Namespace }} 
       effect: Allow
@@ -181,4 +183,4 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "cnpg-cluster.fullname" . }}-backup
     namespace: {{ .Release.Namespace }}
-
+{{- end }}

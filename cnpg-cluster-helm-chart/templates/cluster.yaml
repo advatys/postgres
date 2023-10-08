@@ -26,6 +26,20 @@ spec:
 
   {{- if not (eq .Values.bootstrap.type "none") }}
   bootstrap:
+    {{- if eq .Values.bootstrap.type "initdb" }}
+    initdb:
+      database: {{ .Values.bootstrap.initdb.database }}
+      owner: {{ .Values.bootstrap.initdb.databaseOwner }}
+      secret:
+        name: {{ .Release.Name }}-app-secret
+    {{- if  .Values.bootstrap.initdb.configmapSQL }}
+      postInitApplicationSQLRefs:
+        configMapRefs:
+        - name: {{ .Release.Name }}-sql
+          key: script.sql
+  
+    {{- end }} 
+    {{- end -}}
     {{- if eq .Values.bootstrap.type "physical" }}
     recovery:
       source: {{ .Values.bootstrap.sourceClusterName }}
