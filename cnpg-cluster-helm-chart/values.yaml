@@ -5,6 +5,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 prometheus-postgres-exporter:
+  enabled: false
   config:
     datasource:
       host: grafana-psql-pgcluster-r.grafana.svc
@@ -62,14 +63,36 @@ backup:
       address: "https://vault.vault.svc.cluster.local:8200"
 
 bootstrap:
-  # Options: 
+  # Options:
   #   - none
   #   - empty-db
   #   - offline-logical
   #   - physical
   #   - streaming-replication
   #   - online-logical
-  type: "none"
+  #   - initdb
+  type: "initdb"
+
+  initdb:
+    database: app
+    databaseOwner: app
+    secret:
+      type: "kubernetes" # Options - "kubernetes, vault-dynamic"
+      kuberentes:
+        username: "app"
+        password: "app"
+      vault:
+        path: "secret/kv"
+        address: "http://vault:8200"
+        authPath: "jwt-hub"
+        authRole: "default"
+#    configmapSQL:
+#      script.sql: |
+#        -- SQL Plain Text Here
+#
+
+
+
 
   # Reovery target for PITR. Only works for type: physical
   # recoveryTarget:
