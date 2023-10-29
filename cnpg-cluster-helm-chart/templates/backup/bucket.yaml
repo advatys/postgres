@@ -48,30 +48,6 @@ spec:
     {{- end }}
 
 ---
-# apiVersion: redhatcop.redhat.io/v1alpha1
-# kind: VaultSecret
-# metadata:
-#   name: {{ include "cnpg-cluster.fullname" . }}-backup
-# spec:
-#   vaultSecretDefinitions:
-#     - authentication:
-#         path: {{ .Values.backup.bucket.vault.authPath }}
-#         role: {{ include "cnpg-cluster.fullname" . }}-backup-creator-{{ include "cnpg-cluster.fullname" . }}-backup-{{ .Release.Namespace }}
-#         serviceAccount:
-#           name: {{ include "cnpg-cluster.fullname" . }}-backup
-#       connection:
-#         address: {{ .Values.backup.bucket.vault.address }}
-#       name: bucketCreds
-#       path: {{ .Values.backup.bucket.vault.awsBackend }}/creds/{{ include "cnpg-cluster.fullname" . }}-backup-creator
-
-#   output:
-#     name: {{ include "cnpg-cluster.fullname" . }}-backup-creds
-#     stringData:
-#       ACCESS_KEY_ID:  {{ "{{" }} .bucketCreds.Data.access_key {{ "}}" }}
-#       ACCESS_SECRET_KEY: {{ "{{" }} .bucketCreds.Data.secret_key {{ "}}" }}
-#       ACCESS_SESSION_TOKEN: {{ "{{" }} .bucketCreds.Data.security_token {{ "}}" }}
-#     type: Opaque
----
 apiVersion: batch/v1
 kind: CronJob
 metadata:
