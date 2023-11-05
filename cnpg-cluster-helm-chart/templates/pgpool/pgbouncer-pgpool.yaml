@@ -21,6 +21,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: {{ include "cnpg-cluster.fullname" . }}-rw-pooler
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
@@ -32,6 +33,7 @@ apiVersion: postgresql.cnpg.io/v1
 kind: Pooler
 metadata:
   name: {{ include "cnpg-cluster.fullname" . }}-ro-pooler
+  namespace: {{ .Release.Namespace }}
 spec:
   cluster:
     name: {{ include "cnpg-cluster.fullname" . }}
@@ -48,6 +50,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: {{ include "cnpg-cluster.fullname" . }}-ro-pooler
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
@@ -55,3 +58,4 @@ spec:
   podMetricsEndpoints:
   - port: metrics
 {{- end }}
+
