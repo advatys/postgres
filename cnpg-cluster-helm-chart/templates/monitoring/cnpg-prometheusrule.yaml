@@ -2,6 +2,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: {{ include "cnpg-cluster.fullname" . }}-cnpg-exporter-alerts
+  namespace: {{ .Release.Namespace }}
   labels:
     openshift.io/prometheus-rule-evaluation-scope: leaf-prometheus
 spec:

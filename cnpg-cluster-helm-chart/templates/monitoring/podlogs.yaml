@@ -2,6 +2,7 @@ apiVersion: monitoring.grafana.com/v1alpha1
 kind: PodLogs
 metadata:
   name: {{ include "cnpg-cluster.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "cnpg-cluster.labels" . | nindent 4 }}
 spec:

@@ -4,6 +4,7 @@ apiVersion: postgresql.cnpg.io/v1
 kind: Pooler
 metadata:
   name: {{ include "cnpg-cluster.fullname" . }}-rw-pooler
+  namespace: {{ .Release.Namespace }}
 spec:
   cluster:
     name: {{ include "cnpg-cluster.fullname" . }}
